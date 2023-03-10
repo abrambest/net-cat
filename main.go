@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 type StructUsers struct {
@@ -82,19 +83,24 @@ func handle(clientConn net.Conn) {
 		Addr: clientConn,
 		Name: userName,
 	}
-
+	mu.Lock()
 	usersMap[user.Name] = user
+	mu.Unlock()
 
 	// fmt.Printf("Name user: %s, RemoteAddr: %s\n", userName, clientConn.RemoteAddr())
+	clientScaner := bufio.NewScanner(clientConn)
 
-	for {
-		b := bufio.NewReader(clientConn)
-		line, err := b.ReadBytes('\n')
-		if err != nil {
-			log.Println(err, user.Name)
-			return
-		}
+	fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 
+	for clientScaner.Scan() {
+		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+		scanTxt := strings.TrimSpace(clientScaner.Text())
+
+		// line, err := b.ReadBytes('\n')
+		// if err != nil {
+		// 	log.Println(err, user.Name)
+		// 	return
+		// }
 	}
 }
 
