@@ -20,6 +20,7 @@ var (
 	usersMap = make(map[net.Conn]string)
 	mu       sync.Mutex
 	letter   = make(chan massageData)
+	info     = make(chan massageData)
 )
 
 func cover(name, text string) massageData {
@@ -37,6 +38,8 @@ func checkNames(name string) bool {
 	}
 	return true
 }
+
+func historyWrite()
 
 func checkNamesFonts(name string) bool {
 	for _, s := range name {
@@ -88,6 +91,7 @@ func handle(clientConn net.Conn) {
 
 	mu.Lock()
 	usersMap[clientConn] = userName
+	info <- cover(userName, "has joined our chat...")
 	mu.Unlock()
 
 	clientScaner := bufio.NewScanner(clientConn)
@@ -108,20 +112,29 @@ func handle(clientConn net.Conn) {
 	}
 	mu.Lock()
 	delete(usersMap, clientConn)
-	letter <- cover(userName, " has joined our chat...")
+	info <- cover(userName, "has left our chat...")
 	mu.Unlock()
 }
 
 func postMan() {
 	for {
-		letter := <-letter
-		for conn, user := range usersMap {
-			if user == letter.Name {
-				continue
+		select {
+		case letter := <-letter:
+			for conn, user := range usersMap {
+				if user == letter.Name {
+					continue
+				}
+				fmt.Fprintf(conn, "\n[%s][%s]:%s\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), letter.Name, letter.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
 			}
-			fmt.Fprintf(conn, "\n[%s][%s]:%s\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), letter.Name, letter.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
-		}
+		case info := <-info:
+			for conn, user := range usersMap {
+				if user == info.Name {
+					continue
+				}
+				fmt.Fprintf(conn, "\n%s %s\n[%s][%s]:", info.Name, info.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
+			}
 
+		}
 	}
 }
 
