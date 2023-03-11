@@ -11,18 +11,26 @@ import (
 	"time"
 )
 
-type StructUsers struct {
-	Addr net.Conn
-	Name string
+type massageData struct {
+	Name    string
+	Massage string
 }
 
 var (
-	usersMap = make(map[string]StructUsers)
+	usersMap = make(map[net.Conn]string)
 	mu       sync.Mutex
+	letter   = make(chan massageData)
 )
 
+func cover(name, text string) massageData {
+	return massageData{
+		Name:    name,
+		Massage: text,
+	}
+}
+
 func checkNames(name string) bool {
-	for names := range usersMap {
+	for _, names := range usersMap {
 		if name == names {
 			return false
 		}
@@ -33,11 +41,10 @@ func checkNames(name string) bool {
 func checkNamesFonts(name string) bool {
 	for _, s := range name {
 		if (s < '0' || s > '9') && (s < 'A' || s > 'Z') && (s < 'a' || s > 'z') {
-			fmt.Println("false")
 			return false
 		}
 	}
-	fmt.Println("true")
+
 	return true
 }
 
@@ -79,15 +86,10 @@ func handle(clientConn net.Conn) {
 
 	userName := strings.TrimSpace(getNameUser)
 
-	user := StructUsers{
-		Addr: clientConn,
-		Name: userName,
-	}
 	mu.Lock()
-	usersMap[user.Name] = user
+	usersMap[clientConn] = userName
 	mu.Unlock()
 
-	// fmt.Printf("Name user: %s, RemoteAddr: %s\n", userName, clientConn.RemoteAddr())
 	clientScaner := bufio.NewScanner(clientConn)
 
 	fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
@@ -95,12 +97,31 @@ func handle(clientConn net.Conn) {
 	for clientScaner.Scan() {
 		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 		scanTxt := strings.TrimSpace(clientScaner.Text())
+		if scanTxt == "" {
+			continue
+		} else {
+			data := cover(userName, scanTxt)
 
-		// line, err := b.ReadBytes('\n')
-		// if err != nil {
-		// 	log.Println(err, user.Name)
-		// 	return
-		// }
+			letter <- data
+		}
+
+	}
+	mu.Lock()
+	delete(usersMap, clientConn)
+	letter <- cover(userName, " has joined our chat...")
+	mu.Unlock()
+}
+
+func postMan() {
+	for {
+		letter := <-letter
+		for conn, user := range usersMap {
+			if user == letter.Name {
+				continue
+			}
+			fmt.Fprintf(conn, "\n[%s][%s]:%s\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), letter.Name, letter.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
+		}
+
 	}
 }
 
@@ -116,13 +137,12 @@ func main() {
 		port = "8989"
 	}
 
-	fmt.Println("Listening on the port :" + port)
-
 	server, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Println(err, "-> Please input port: \"Example: go run . 8080\"")
 		return
 	}
+	fmt.Println("Listening on the port :" + port)
 	defer server.Close()
 
 	history, err := os.Create("history.txt")
@@ -139,6 +159,7 @@ func main() {
 		}
 
 		go handle(client)
+		go postMan()
 
 	}
 }
