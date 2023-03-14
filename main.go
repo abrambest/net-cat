@@ -17,11 +17,26 @@ type massageData struct {
 }
 
 var (
-	usersMap = make(map[net.Conn]string)
-	mu       sync.Mutex
-	letter   = make(chan massageData)
-	info     = make(chan massageData)
+	usersMap    = make(map[net.Conn]string)
+	mu          sync.Mutex
+	letter      = make(chan massageData)
+	info        = make(chan massageData)
+	historyChan = make(chan massageData)
 )
+
+func writeHistory(userName string, clientConn net.Conn) {
+	readhistory, err := os.ReadFile("history.txt")
+	if err != nil {
+		log.Println(err)
+	}
+	if len(string(readhistory)) != 0 {
+		fmt.Fprintf(clientConn, string(readhistory))
+		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+
+	} else {
+		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+	}
+}
 
 func cover(name, text string) massageData {
 	return massageData{
@@ -96,9 +111,12 @@ func handle(clientConn net.Conn) {
 
 	clientScaner := bufio.NewScanner(clientConn)
 
-	fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+	mu.Lock()
+	writeHistory(userName, clientConn)
+	mu.Unlock()
 
 	for clientScaner.Scan() {
+
 		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 		scanTxt := strings.TrimSpace(clientScaner.Text())
 
@@ -107,6 +125,10 @@ func handle(clientConn net.Conn) {
 			continue
 		} else {
 			data := cover(userName, scanTxt)
+
+			mu.Lock()
+			historyAdd(data) // historyChan <- data
+			mu.Unlock()
 
 			letter <- data
 
@@ -117,6 +139,16 @@ func handle(clientConn net.Conn) {
 	delete(usersMap, clientConn)
 	info <- cover(userName, "has left our chat...")
 	mu.Unlock()
+}
+
+func historyAdd(h massageData) {
+	options := os.O_APPEND | os.O_WRONLY | os.O_CREATE
+	history, err := os.OpenFile("history.txt", options, 0666)
+	defer history.Close()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Fprintf(history, "[%s][%s]:%s\n", time.Now().Format("2006-1-2 15:4:5"), h.Name, h.Massage)
 }
 
 func postMan() {
@@ -159,9 +191,10 @@ func main() {
 		return
 	}
 	fmt.Println("Listening on the port :" + port)
+
 	defer server.Close()
 
-	history, err := os.Create("history.txt")
+	history, err := os.OpenFile("history.txt", os.O_TRUNC, 0666)
 	if err != nil {
 		log.Println(err)
 	}
