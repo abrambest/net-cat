@@ -39,7 +39,7 @@ func checkNames(name string) bool {
 	return true
 }
 
-func historyWrite()
+// func historyWrite()
 
 func checkNamesFonts(name string) bool {
 	for _, s := range name {
@@ -101,12 +101,15 @@ func handle(clientConn net.Conn) {
 	for clientScaner.Scan() {
 		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 		scanTxt := strings.TrimSpace(clientScaner.Text())
+
 		if scanTxt == "" {
+			fmt.Fprintf(clientConn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 			continue
 		} else {
 			data := cover(userName, scanTxt)
 
 			letter <- data
+
 		}
 
 	}
