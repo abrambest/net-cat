@@ -88,7 +88,7 @@ func postMan() {
 				if letter.Name == user {
 					continue
 				}
-				conn.Write([]byte("\033[1A\033[K"))
+
 				fmt.Fprintf(conn, "\n[%s][%s]:%s\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), letter.Name, letter.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
 			}
 			mu.Unlock()
@@ -167,7 +167,7 @@ func handle(clientConn net.Conn) {
 			fmt.Fprintf(clientConn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 			continue
 		} else {
-
+			clientConn.Write([]byte("\033[1A\033[K"))
 			fmt.Fprintf(clientConn, "[%s][%s]: %s\n", time.Now().Format("2006-1-2 15:4:5"), userName, scanTxt)
 			data := cover(userName, scanTxt)
 			mu.Lock()
