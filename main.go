@@ -40,7 +40,6 @@ func writeHistory(name string, conn net.Conn) {
 
 	if len(history) != 0 {
 		conn.Write(history)
-		fmt.Fprintf(conn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
 
 	} else {
 		return
@@ -89,6 +88,7 @@ func postMan() {
 				if letter.Name == user {
 					continue
 				}
+				conn.Write([]byte("\033[1A\033[K"))
 				fmt.Fprintf(conn, "\n[%s][%s]:%s\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), letter.Name, letter.Massage, time.Now().Format("2006-1-2 15:4:5"), user)
 			}
 			mu.Unlock()
@@ -155,7 +155,7 @@ func handle(clientConn net.Conn) {
 
 	for {
 
-		fmt.Fprintf(clientConn, "rr[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 		ok := clientScanner.Scan()
 		if !ok {
 			break
@@ -167,9 +167,8 @@ func handle(clientConn net.Conn) {
 			fmt.Fprintf(clientConn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 			continue
 		} else {
-			clientConn.Write([]byte("\033[1A"))
-			clientConn.Write([]byte("\033[K"))
-			fmt.Fprintf(clientConn, "WWW[%s][%s]: %s\n", time.Now().Format("2006-1-2 15:4:5"), userName, scanTxt)
+
+			fmt.Fprintf(clientConn, "[%s][%s]: %s\n", time.Now().Format("2006-1-2 15:4:5"), userName, scanTxt)
 			data := cover(userName, scanTxt)
 			mu.Lock()
 			historyAdd(data)
@@ -200,7 +199,7 @@ func main() {
 	fmt.Println("listening on the port: " + port)
 	defer server.Close()
 
-	history, err := os.OpenFile("history.txt", os.O_TRUNC, 0666)
+	history, err := os.OpenFile("history.txt", os.O_TRUNC|os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		log.Println("error creat or open history file", err)
 		return
