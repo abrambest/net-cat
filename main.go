@@ -43,7 +43,7 @@ func writeHistory(name string, conn net.Conn) {
 		fmt.Fprintf(conn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
 
 	} else {
-		fmt.Fprintf(conn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
+		return
 
 	}
 
@@ -153,9 +153,13 @@ func handle(clientConn net.Conn) {
 	writeHistory(userName, clientConn)
 	mu.Unlock()
 
-	for clientScanner.Scan() {
+	for {
 
-		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+		fmt.Fprintf(clientConn, "rr[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+		ok := clientScanner.Scan()
+		if !ok {
+			break
+		}
 
 		scanTxt := strings.TrimSpace(clientScanner.Text())
 
@@ -163,11 +167,9 @@ func handle(clientConn net.Conn) {
 			fmt.Fprintf(clientConn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 			continue
 		} else {
-
-			clientConn.Write([]byte("\033[2K\r" + scanTxt))
-			clientConn.Write([]byte("heeeelo"))
-
-			fmt.Fprintf(clientConn, "WWW[%s][%s]: ", time.Now().Format("2006-1-2 15:4:5"), userName)
+			clientConn.Write([]byte("\033[1A"))
+			clientConn.Write([]byte("\033[K"))
+			fmt.Fprintf(clientConn, "WWW[%s][%s]: %s\n", time.Now().Format("2006-1-2 15:4:5"), userName, scanTxt)
 			data := cover(userName, scanTxt)
 			mu.Lock()
 			historyAdd(data)
