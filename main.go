@@ -40,7 +40,7 @@ func writeHistory(name string, conn net.Conn) {
 
 	if len(history) != 0 {
 		conn.Write(history)
-		fmt.Fprintf(conn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
+		fmt.Fprintf(conn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
 
 	} else {
 		fmt.Fprintf(conn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), name)
@@ -156,12 +156,18 @@ func handle(clientConn net.Conn) {
 	for clientScanner.Scan() {
 
 		fmt.Fprintf(clientConn, "[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
+
 		scanTxt := strings.TrimSpace(clientScanner.Text())
 
 		if scanTxt == "" {
 			fmt.Fprintf(clientConn, "Error - sent an empty message...\n[%s][%s]:", time.Now().Format("2006-1-2 15:4:5"), userName)
 			continue
 		} else {
+
+			clientConn.Write([]byte("\033[2K\r" + scanTxt))
+			clientConn.Write([]byte("heeeelo"))
+
+			fmt.Fprintf(clientConn, "WWW[%s][%s]: ", time.Now().Format("2006-1-2 15:4:5"), userName)
 			data := cover(userName, scanTxt)
 			mu.Lock()
 			historyAdd(data)
@@ -169,6 +175,10 @@ func handle(clientConn net.Conn) {
 			letter <- data
 		}
 	}
+	mu.Lock()
+	delete(usersMap, clientConn)
+	info <- cover(userName, "has left our chat...")
+	mu.Unlock()
 
 }
 
